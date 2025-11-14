@@ -1,66 +1,66 @@
-# Demo Module Federation com Turborepo
+# Module Federation Demo with Turborepo
 
-Este é um projeto de demonstração que utiliza **Turborepo**, **Module Federation** e **React Router DOM** com o padrão **Bridge** para criar uma arquitetura de micro-frontends.
+This is a demonstration project that uses **Turborepo**, **Module Federation**, and **React Router DOM** with the **Bridge** pattern to create a micro-frontend architecture.
 
-## 🏗️ Estrutura do Projeto
+## 🏗️ Project Structure
 
 ```
 demo-module-federation/
 ├── packages/
-│   ├── consumer/          # Aplicação host (porta 3000)
-│   ├── provider-a/        # Aplicação remota A (porta 3001)
-│   ├── provider-b/        # Aplicação remota B (porta 3002)
-│   ├── typescript-config/ # Configurações TypeScript compartilhadas
-│   └── eslint-config/     # Configurações ESLint compartilhadas
+│   ├── consumer/          # Host application (port 3000)
+│   ├── provider-a/        # Remote application A (port 3001)
+│   ├── provider-b/        # Remote application B (port 3002)
+│   ├── typescript-config/ # Shared TypeScript configurations
+│   └── eslint-config/     # Shared ESLint configurations
 ├── package.json
 ├── pnpm-workspace.yaml
 └── turbo.json
 ```
 
-## 🚀 Tecnologias Utilizadas
+## 🚀 Technologies Used
 
-- **Turborepo**: Sistema de build de alto desempenho para monorepos
-- **Module Federation**: Permite compartilhamento de código entre aplicações em tempo de execução
-- **React Router v7**: Roteamento declarativo para React
-- **@module-federation/bridge-react**: Padrão Bridge para integração perfeita entre aplicações
-- **Rsbuild**: Build tool moderno e performático
-- **TypeScript**: Tipagem estática
-- **pnpm**: Gerenciador de pacotes eficiente
+- **Turborepo**: High-performance build system for monorepos
+- **Module Federation**: Enables code sharing between applications at runtime
+- **React Router v7**: Declarative routing for React
+- **@module-federation/bridge-react**: Bridge pattern for seamless integration between applications
+- **Rsbuild**: Modern and performant build tool
+- **TypeScript**: Static typing
+- **pnpm**: Efficient package manager
 
-## 📋 Pré-requisitos
+## 📋 Prerequisites
 
 - Node.js >= 18.0.0
 - pnpm >= 8.15.0
 
-## 🔧 Instalação
+## 🔧 Installation
 
-1. Clone o repositório:
+1. Clone the repository:
 ```bash
-git clone <url-do-repositório>
+git clone <repository-url>
 cd demo-module-federation
 ```
 
-2. Instale as dependências:
+2. Install dependencies:
 ```bash
 pnpm install
 ```
 
-## 🎯 Como Executar
+## 🎯 How to Run
 
-### Desenvolvimento
+### Development
 
-Para iniciar todas as aplicações em modo de desenvolvimento:
+To start all applications in development mode:
 
 ```bash
 pnpm dev
 ```
 
-Isso iniciará:
-- **Consumer** em http://localhost:3000
-- **Provider A** em http://localhost:3001
-- **Provider B** em http://localhost:3002
+This will start:
+- **Consumer** at http://localhost:3000
+- **Provider A** at http://localhost:3001
+- **Provider B** at http://localhost:3002
 
-### Executar aplicações individualmente
+### Run applications individually
 
 ```bash
 # Consumer (host)
@@ -78,7 +78,7 @@ pnpm dev
 
 ### Build
 
-Para fazer o build de todas as aplicações:
+To build all applications:
 
 ```bash
 pnpm build
@@ -86,73 +86,92 @@ pnpm build
 
 ### Lint
 
-Para executar o linting em todos os pacotes:
+To run linting on all packages:
 
 ```bash
 pnpm lint
 ```
 
-### Limpar
+### Clean
 
-Para limpar os artefatos de build:
+To clean build artifacts:
 
 ```bash
 pnpm clean
 ```
 
-## 🎨 Funcionalidades
+## 🎨 Features
 
 ### Consumer (Host Application)
-- Aplicação principal que consome os módulos remotos
-- Navegação entre diferentes providers via React Router
-- Lazy loading dos módulos remotos
-- Fallback de carregamento
+- Main application that consumes remote modules
+- Navigation between different providers via React Router
+- Lazy loading of remote modules with error boundaries
+- Dynamic remote registration using `registerRemotes()`
+- Routes:
+  - `/` - Home with navigation to providers
+  - `/provider-a/*` - Provider A routes
+  - `/provider-b/*` - Provider B routes
 
 ### Provider A
-- Módulo remoto exposto via Module Federation
-- Rotas internas:
-  - `/` - Home
-  - `/about` - Sobre
-  - `/contact` - Contato
-- Tema verde (#4CAF50)
+- Remote module exposed via Module Federation
+- Internal routes with React Router:
+  - `/` - Home page with links to details and Provider B
+  - `/details` - Details page with back navigation
+- Bridge router enabled for seamless navigation
 
 ### Provider B
-- Módulo remoto exposto via Module Federation
-- Rotas internas:
-  - `/` - Dashboard
-  - `/settings` - Configurações
-  - `/reports` - Relatórios
-- Tema azul (#2196F3)
+- Remote module exposed via Module Federation
+- Internal routes with React Router:
+  - `/` - Home page with links to details and Provider A
+  - `/details` - Details page with back navigation
+- Bridge router enabled for seamless navigation
 
-## 🔌 Arquitetura Module Federation
+## 🔌 Module Federation Architecture
 
 ### Consumer (rsbuild.config.ts)
 ```typescript
 pluginModuleFederation({
   name: 'consumer',
-  remotes: {
-    providerA: 'providerA@http://localhost:3001/mf-manifest.json',
-    providerB: 'providerB@http://localhost:3002/mf-manifest.json',
-  },
   shared: {
-    react: { singleton: true },
-    'react-dom': { singleton: true },
-    'react-router': { singleton: true },
+    react: { singleton: true, eager: true },
+    'react-dom': { singleton: true, eager: true },
   },
 })
+```
+
+### Consumer Runtime (App.tsx)
+```typescript
+import { registerRemotes, loadRemote } from '@module-federation/enhanced/runtime';
+
+// Register remotes dynamically
+registerRemotes([
+  {
+    name: 'providerA',
+    entry: 'http://localhost:3001/mf-manifest.json',
+  },
+  {
+    name: 'providerB',
+    entry: 'http://localhost:3002/mf-manifest.json',
+  },
+]);
+
+const ProviderA = createRemoteAppComponent({
+  loader: () => loadRemote('providerA/app'),
+  loading: <div>Loading Provider A...</div>,
+  fallback: ({ error }) => <div>Error: {error?.message}</div>,
+});
 ```
 
 ### Providers (rsbuild.config.ts)
 ```typescript
 pluginModuleFederation({
-  name: 'providerA', // ou 'providerB'
+  name: 'providerA', // or 'providerB'
   exposes: {
     './app': './src/export-app.tsx',
   },
   shared: {
-    react: { singleton: true },
-    'react-dom': { singleton: true },
-    'react-router': { singleton: true },
+    react: { singleton: true, eager: true },
+    'react-dom': { singleton: true, eager: true },
   },
   bridge: {
     enableBridgeRouter: true,
@@ -160,9 +179,11 @@ pluginModuleFederation({
 })
 ```
 
+Note: The `dts: false` option may be present in provider configurations to disable TypeScript declaration generation.
+
 ## 🌉 Bridge Pattern
 
-O Bridge Pattern é utilizado para integração perfeita entre as aplicações:
+The Bridge Pattern is used for seamless integration between applications:
 
 ```typescript
 // Provider - export-app.tsx
@@ -174,39 +195,87 @@ export default createBridgeComponent({
 });
 
 // Consumer - App.tsx
-import { createBridgeComponent } from '@module-federation/bridge-react';
+import { createRemoteAppComponent } from '@module-federation/bridge-react';
+import { loadRemote } from '@module-federation/enhanced/runtime';
 
-const ProviderA = createBridgeComponent(() => import('providerA/app'));
+const ProviderA = createRemoteAppComponent({
+  loader: () => loadRemote('providerA/app'),
+  loading: <div>Loading...</div>,
+  fallback: ({ error }) => <div>Error: {error?.message}</div>,
+});
 ```
 
 ## 📦 Shared Dependencies
 
-As dependências compartilhadas entre as aplicações incluem:
-- **react**: Singleton para garantir uma única instância
-- **react-dom**: Singleton para renderização consistente
-- **react-router**: Singleton para roteamento unificado
+Shared dependencies between applications include:
+- **react**: Singleton with eager loading to ensure a single instance across all applications
+- **react-dom**: Singleton with eager loading for consistent rendering
+- **react-router**: Used independently in each application for internal routing
 
-## 🛠️ Configurações Compartilhadas
+Note: The consumer doesn't specify remotes in the build configuration. Instead, remotes are registered dynamically at runtime.
+
+## 🎯 Runtime Module Federation
+
+This project uses **runtime Module Federation** instead of build-time configuration:
+
+### Key Features:
+- ✅ **No build dependencies**: Remote applications don't need to be built before running the consumer
+- ✅ **Dynamic registration**: Remotes are registered at runtime using `registerRemotes()`
+- ✅ **On-demand loading**: Modules are loaded dynamically with `loadRemote()`
+- ✅ **Independent development**: Each application can be developed and deployed independently
+- ✅ **Bridge router enabled**: Seamless navigation between host and remote applications
+- ✅ **Error boundaries**: Graceful error handling with fallback UI
+
+### How it works:
+
+1. **Consumer** registers remotes dynamically in `App.tsx`:
+```typescript
+registerRemotes([
+  { name: 'providerA', entry: 'http://localhost:3001/mf-manifest.json' },
+  { name: 'providerB', entry: 'http://localhost:3002/mf-manifest.json' },
+]);
+```
+
+2. **Remote components** are created using `createRemoteAppComponent`:
+```typescript
+const ProviderA = createRemoteAppComponent({
+  loader: () => loadRemote('providerA/app'),
+  loading: <div>Loading...</div>,
+  fallback: ({ error }) => <div>Error: {error?.message}</div>,
+});
+```
+
+3. **Providers** expose their applications using `createBridgeComponent`:
+```typescript
+export default createBridgeComponent({
+  rootComponent: App,
+});
+```
+
+This approach eliminates the need to configure remotes in `rsbuild.config.ts`, making the architecture more flexible and suitable for micro-frontend scenarios.
+
+## 🛠️ Shared Configurations
 
 ### TypeScript
-- `@repo/typescript-config/base.json`: Configuração base
-- `@repo/typescript-config/react.json`: Configuração específica para React
+- `@repo/typescript-config/base.json`: Base configuration
+- `@repo/typescript-config/react.json`: React-specific configuration
 
 ### ESLint
-- `@repo/eslint-config/base.js`: Configuração base
-- `@repo/eslint-config/react.js`: Configuração específica para React
+- `@repo/eslint-config/base.js`: Base configuration
+- `@repo/eslint-config/react.js`: React-specific configuration
 
-## 📚 Recursos Adicionais
+## 📚 Additional Resources
 
 - [Turborepo Documentation](https://turbo.build/repo/docs)
 - [Module Federation Documentation](https://module-federation.io/)
 - [React Router Documentation](https://reactrouter.com/)
 - [Rsbuild Documentation](https://rsbuild.dev/)
+- [Module Federation Bridge React](https://module-federation.io/guide/basic/bridge.html)
 
-## 🤝 Contribuindo
+## 🤝 Contributing
 
-Contribuições são bem-vindas! Sinta-se à vontade para abrir issues ou pull requests.
+Contributions are welcome! Feel free to open issues or pull requests.
 
-## 📝 Licença
+## 📝 License
 
 MIT
